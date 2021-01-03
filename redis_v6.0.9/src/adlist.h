@@ -39,9 +39,9 @@ typedef struct listNode {
     void *value;
 } listNode;
 
-typedef struct listIter {
-    listNode *next;
-    int direction;
+typedef struct listIter {   // list迭代器
+    listNode *next;     // 下个节点
+    int direction;      // 迭代的方向：HEAD/TAIL
 } listIter;
 
 typedef struct list {
