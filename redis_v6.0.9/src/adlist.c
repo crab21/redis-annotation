@@ -108,7 +108,7 @@ list *listAddNodeHead(list *list, void *value) {
  * On error, NULL is returned and no operation is performed (i.e. the
  * list remains unaltered).
  * On success the 'list' pointer you pass to the function is returned. */
-list *listAddNodeTail(list *list, void *value) {
+list *listAddNodeTail(list *list, void *value) { // 尾部添加
     listNode *node;
 
     if ((node = zmalloc(sizeof(*node))) == NULL)
@@ -321,11 +321,11 @@ listNode *listIndex(list *list, long index) {
 void listRotateTailToHead(list *list) {
     if (listLength(list) <= 1) return;
 
-    /* Detach current tail */
+    /* Detach current tail */ // 尾部分离，围绕tail进行
     listNode *tail = list->tail;
     list->tail = tail->prev;
     list->tail->next = NULL;
-    /* Move it as head */
+    /* Move it as head */  // 移动到head，先是next的pre，再本节点的pre,再本节点的next，最后是连接下一个节点「下一个节点赋予head」
     list->head->prev = tail;
     tail->prev = NULL;
     tail->next = list->head;
