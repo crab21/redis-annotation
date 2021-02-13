@@ -1201,16 +1201,16 @@ int rdbSaveRio(rio *rdb, int *error, int rdbflags, rdbSaveInfo *rsi) {
 
     if (server.rdb_checksum)
         rdb->update_cksum = rioGenericUpdateChecksum;
-    snprintf(magic,sizeof(magic),"REDIS%04d",RDB_VERSION);
+    snprintf(magic,sizeof(magic),"REDIS%04d",RDB_VERSION); // 04指的是版本号
     if (rdbWriteRaw(rdb,magic,9) == -1) goto werr;
-    if (rdbSaveInfoAuxFields(rdb,rdbflags,rsi) == -1) goto werr;
-    if (rdbSaveModulesAux(rdb, REDISMODULE_AUX_BEFORE_RDB) == -1) goto werr;
+    if (rdbSaveInfoAuxFields(rdb,rdbflags,rsi) == -1) goto werr; // redis辅助信息，返回了-1，代表还是比较重要的
+    if (rdbSaveModulesAux(rdb, REDISMODULE_AUX_BEFORE_RDB) == -1) goto werr; // 模块化信息
 
     for (j = 0; j < server.dbnum; j++) {
         redisDb *db = server.db+j;
         dict *d = db->dict;
-        if (dictSize(d) == 0) continue;
-        di = dictGetSafeIterator(d);
+        if (dictSize(d) == 0) continue; // 大小为0，则跳过
+        di = dictGetSafeIterator(d); // 分配内存，返回迭代器
 
         /* Write the SELECT DB opcode */
         if (rdbSaveType(rdb,RDB_OPCODE_SELECTDB) == -1) goto werr;
@@ -1224,19 +1224,19 @@ int rdbSaveRio(rio *rdb, int *error, int rdbflags, rdbSaveInfo *rsi) {
         if (rdbSaveLen(rdb,db_size) == -1) goto werr;
         if (rdbSaveLen(rdb,expires_size) == -1) goto werr;
 
-        /* Iterate this DB writing every entry */
-        while((de = dictNext(di)) != NULL) {
-            sds keystr = dictGetKey(de);
-            robj key, *o = dictGetVal(de);
+        /* Iterate this DB writing every entry */ // 遍历每一个entry
+        while((de = dictNext(di)) != NULL) { // dictNext为函数取值的方式
+            sds keystr = dictGetKey(de); // 获取key
+            robj key, *o = dictGetVal(de); //获取value
             long long expire;
 
-            initStaticStringObject(key,keystr);
-            expire = getExpire(db,&key);
+            initStaticStringObject(key,keystr); // 初始化obj，「类型，数量，指针指向的地址」
+            expire = getExpire(db,&key); // 通过key来找过期时间
             if (rdbSaveKeyValuePair(rdb,&key,o,expire) == -1) goto werr;
 
             /* When this RDB is produced as part of an AOF rewrite, move
              * accumulated diff from parent to child while rewriting in
-             * order to have a smaller final write. */
+             * order to have a smaller final write. */  // 把父级别的积累缓冲到缓冲区，在重写完成后串联在一起。
             if (rdbflags & RDBFLAGS_AOF_PREAMBLE &&
                 rdb->processed_bytes > processed+AOF_READ_DIFF_INTERVAL_BYTES)
             {
@@ -1244,7 +1244,7 @@ int rdbSaveRio(rio *rdb, int *error, int rdbflags, rdbSaveInfo *rsi) {
                 aofReadDiffFromParent();
             }
         }
-        dictReleaseIterator(di);
+        dictReleaseIterator(di); // 内存释放，在每一次循环中，用完就释放，「内存周期管理」
         di = NULL; /* So that we don't release it again on error. */
     }
 
@@ -1263,21 +1263,21 @@ int rdbSaveRio(rio *rdb, int *error, int rdbflags, rdbSaveInfo *rsi) {
         di = NULL; /* So that we don't release it again on error. */
     }
 
-    if (rdbSaveModulesAux(rdb, REDISMODULE_AUX_AFTER_RDB) == -1) goto werr;
+    if (rdbSaveModulesAux(rdb, REDISMODULE_AUX_AFTER_RDB) == -1) goto werr; // 再次保存辅助的信息，「上一步可能会改变」
 
     /* EOF opcode */
-    if (rdbSaveType(rdb,RDB_OPCODE_EOF) == -1) goto werr;
+    if (rdbSaveType(rdb,RDB_OPCODE_EOF) == -1) goto werr; // 保存文件类型，结束位置的标志
 
     /* CRC64 checksum. It will be zero if checksum computation is disabled, the
      * loading code skips the check in this case. */
     cksum = rdb->cksum;
     memrev64ifbe(&cksum);
-    if (rioWrite(rdb,&cksum,8) == 0) goto werr;
-    return C_OK;
+    if (rioWrite(rdb,&cksum,8) == 0) goto werr; // checksum 校验位插入文件最后
+    return C_OK; // 返回0，一切ok
 
 werr:
     if (error) *error = errno;
-    if (di) dictReleaseIterator(di);
+    if (di) dictReleaseIterator(di); // 一旦错误发生后，及时释放内存
     return C_ERR;
 }
 
